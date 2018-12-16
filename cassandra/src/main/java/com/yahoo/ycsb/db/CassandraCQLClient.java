@@ -39,6 +39,7 @@ import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.Status;
 
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -126,7 +127,7 @@ public class CassandraCQLClient extends DB {
   private static boolean debug = false;
 
   private static boolean trace = false;
-  
+
   /**
    * Initialize any state for this DB. Called once per DB instance; there is one
    * DB instance per client thread.
@@ -194,7 +195,7 @@ public class CassandraCQLClient extends DB {
         if (maxConnections != null) {
           cluster.getConfiguration().getPoolingOptions()
               .setMaxConnectionsPerHost(HostDistance.LOCAL,
-              Integer.valueOf(maxConnections));
+                  Integer.valueOf(maxConnections));
         }
 
         String coreConnections = getProperties().getProperty(
@@ -202,7 +203,7 @@ public class CassandraCQLClient extends DB {
         if (coreConnections != null) {
           cluster.getConfiguration().getPoolingOptions()
               .setCoreConnectionsPerHost(HostDistance.LOCAL,
-              Integer.valueOf(coreConnections));
+                  Integer.valueOf(coreConnections));
         }
 
         String connectTimoutMillis = getProperties().getProperty(
@@ -282,7 +283,7 @@ public class CassandraCQLClient extends DB {
    */
   @Override
   public Status read(String table, String key, Set<String> fields,
-      Map<String, ByteIterator> result) {
+                     Map<String, ByteIterator> result) {
     try {
       PreparedStatement stmt = (fields == null) ? readAllStmt.get() : readStmts.get(fields);
 
@@ -300,16 +301,16 @@ public class CassandraCQLClient extends DB {
         }
 
         stmt = session.prepare(selectBuilder.from(table)
-                               .where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker()))
-                               .limit(1));
+            .where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker()))
+            .limit(1));
         stmt.setConsistencyLevel(readConsistencyLevel);
         if (trace) {
           stmt.enableTracing();
         }
 
         PreparedStatement prevStmt = (fields == null) ?
-                                     readAllStmt.getAndSet(stmt) :
-                                     readStmts.putIfAbsent(new HashSet(fields), stmt);
+            readAllStmt.getAndSet(stmt) :
+            readStmts.putIfAbsent(new HashSet(fields), stmt);
         if (prevStmt != null) {
           stmt = prevStmt;
         }
@@ -336,6 +337,15 @@ public class CassandraCQLClient extends DB {
           result.put(def.getName(), null);
         }
       }
+
+      String version = result.get("version").toString();
+
+      System.out.println("(" +
+          "writer_id:" + 1 +
+          "key:" + key +
+          "timestamp:" + Instant.now() +
+          "version:" + version +
+          ")");
 
       return Status.OK;
 
@@ -368,7 +378,7 @@ public class CassandraCQLClient extends DB {
    */
   @Override
   public Status scan(String table, String startkey, int recordcount,
-      Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
+                     Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
 
     try {
       PreparedStatement stmt = (fields == null) ? scanAllStmt.get() : scanStmts.get(fields);
@@ -409,8 +419,8 @@ public class CassandraCQLClient extends DB {
         }
 
         PreparedStatement prevStmt = (fields == null) ?
-                                     scanAllStmt.getAndSet(stmt) :
-                                     scanStmts.putIfAbsent(new HashSet(fields), stmt);
+            scanAllStmt.getAndSet(stmt) :
+            scanStmts.putIfAbsent(new HashSet(fields), stmt);
         if (prevStmt != null) {
           stmt = prevStmt;
         }
@@ -514,6 +524,15 @@ public class CassandraCQLClient extends DB {
 
       session.execute(boundStmt);
 
+      String version = values.get("version").toString();
+
+      System.out.println("(" +
+          "writer_id:" + 1 +
+          "key:" + key +
+          "timestamp:" + Instant.now() +
+          "version:" + version +
+          ")");
+
       return Status.OK;
     } catch (Exception e) {
       logger.error(MessageFormatter.format("Error updating key: {}", key).getMessage(), e);
@@ -546,10 +565,10 @@ public class CassandraCQLClient extends DB {
       if (stmt == null) {
         Insert insertStmt = QueryBuilder.insertInto(table);
 
-        // Add key
+        // Add key column, with value TBD
         insertStmt.value(YCSB_KEY, QueryBuilder.bindMarker());
 
-        // Add fields
+        // Add fields (other columns), with values TBD
         for (String field : fields) {
           insertStmt.value(field, QueryBuilder.bindMarker());
         }
@@ -574,16 +593,26 @@ public class CassandraCQLClient extends DB {
         }
       }
 
-      // Add key
+      // Add key value
       BoundStatement boundStmt = stmt.bind().setString(0, key);
 
-      // Add fields
+      // Add fields values
       ColumnDefinitions vars = stmt.getVariables();
       for (int i = 1; i < vars.size(); i++) {
         boundStmt.setString(i, values.get(vars.getName(i)).toString());
       }
 
+
       session.execute(boundStmt);
+
+      String version = values.get("version").toString();
+
+      System.out.println("(" +
+          "writer_id:" + 1 +
+          "key:" + key +
+          "timestamp:" + Instant.now() +
+          "version:" + version +
+          ")");
 
       return Status.OK;
     } catch (Exception e) {
@@ -611,7 +640,7 @@ public class CassandraCQLClient extends DB {
       // Prepare statement on demand
       if (stmt == null) {
         stmt = session.prepare(QueryBuilder.delete().from(table)
-                               .where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker())));
+            .where(QueryBuilder.eq(YCSB_KEY, QueryBuilder.bindMarker())));
         stmt.setConsistencyLevel(writeConsistencyLevel);
         if (trace) {
           stmt.enableTracing();
