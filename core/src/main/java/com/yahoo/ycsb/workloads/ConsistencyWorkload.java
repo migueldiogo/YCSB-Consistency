@@ -18,13 +18,18 @@
 package com.yahoo.ycsb.workloads;
 
 import com.yahoo.ycsb.*;
-import com.yahoo.ycsb.generator.*;
+import com.yahoo.ycsb.generator.DiscreteGenerator;
+import com.yahoo.ycsb.generator.NumberGenerator;
 import com.yahoo.ycsb.measurements.Measurements;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
+/**
+ *
+ *
+ */
 public class ConsistencyWorkload extends Workload {
   /**
    * The name of the database table to run queries against.
@@ -34,7 +39,7 @@ public class ConsistencyWorkload extends Workload {
   /**
    * The default name of the database table to run queries against.
    */
-  public static final String TABLENAME_PROPERTY_DEFAULT = "usertable";
+  public static final String TABLENAME_PROPERTY_DEFAULT = "teste";
 
   protected String table;
 
@@ -47,7 +52,7 @@ public class ConsistencyWorkload extends Workload {
    * Default number of fields in a record.
    */
   public static final String FIELD_COUNT_PROPERTY_DEFAULT = "10";
-  
+
   private List<String> fieldnames;
 
   /**
@@ -66,67 +71,12 @@ public class ConsistencyWorkload extends Workload {
   public static final String FIELD_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT = "constant";
 
   /**
-   * The name of the property for the length of a field in bytes.
-   */
-  public static final String FIELD_LENGTH_PROPERTY = "fieldlength";
-
-  /**
-   * The default maximum length of a field in bytes.
-   */
-  public static final String FIELD_LENGTH_PROPERTY_DEFAULT = "100";
-
-  /**
-   * The name of the property for the minimum length of a field in bytes.
-   */
-  public static final String MIN_FIELD_LENGTH_PROPERTY = "minfieldlength";
-
-  /**
-   * The default minimum length of a field in bytes.
-   */
-  public static final String MIN_FIELD_LENGTH_PROPERTY_DEFAULT = "1";
-
-  /**
-   * The name of a property that specifies the filename containing the field length histogram (only
-   * used if fieldlengthdistribution is "histogram").
-   */
-  public static final String FIELD_LENGTH_HISTOGRAM_FILE_PROPERTY = "fieldlengthhistogram";
-
-  /**
-   * The default filename containing a field length histogram.
-   */
-  public static final String FIELD_LENGTH_HISTOGRAM_FILE_PROPERTY_DEFAULT = "hist.txt";
-
-  /**
    * Generator object that produces field lengths.  The value of this depends on the properties that
    * start with "FIELD_LENGTH_".
    */
   protected NumberGenerator fieldlengthgenerator;
 
-  /**
-   * The name of the property for deciding whether to read one field (false) or all fields (true) of
-   * a record.
-   */
-  public static final String READ_ALL_FIELDS_PROPERTY = "readallfields";
-
-  /**
-   * The default value for the readallfields property.
-   */
-  public static final String READ_ALL_FIELDS_PROPERTY_DEFAULT = "true";
-
   protected boolean readallfields;
-
-  /**
-   * The name of the property for deciding whether to write one field (false) or all fields (true)
-   * of a record.
-   */
-  public static final String WRITE_ALL_FIELDS_PROPERTY = "writeallfields";
-
-  /**
-   * The default value for the writeallfields property.
-   */
-  public static final String WRITE_ALL_FIELDS_PROPERTY_DEFAULT = "false";
-
-  protected boolean writeallfields;
 
   /**
    * The name of the property for deciding whether to check all returned
@@ -153,7 +103,7 @@ public class ConsistencyWorkload extends Workload {
   /**
    * The default proportion of transactions that are reads.
    */
-  public static final String READ_PROPORTION_PROPERTY_DEFAULT = "0.95";
+  public static final String READ_PROPORTION_PROPERTY_DEFAULT = "0.5";
 
   /**
    * The name of the property for the proportion of transactions that are updates.
@@ -163,121 +113,7 @@ public class ConsistencyWorkload extends Workload {
   /**
    * The default proportion of transactions that are updates.
    */
-  public static final String UPDATE_PROPORTION_PROPERTY_DEFAULT = "0.05";
-
-  /**
-   * The name of the property for the proportion of transactions that are inserts.
-   */
-  public static final String INSERT_PROPORTION_PROPERTY = "insertproportion";
-
-  /**
-   * The default proportion of transactions that are inserts.
-   */
-  public static final String INSERT_PROPORTION_PROPERTY_DEFAULT = "0.0";
-
-  /**
-   * The name of the property for the proportion of transactions that are scans.
-   */
-  public static final String SCAN_PROPORTION_PROPERTY = "scanproportion";
-
-  /**
-   * The default proportion of transactions that are scans.
-   */
-  public static final String SCAN_PROPORTION_PROPERTY_DEFAULT = "0.0";
-
-  /**
-   * The name of the property for the proportion of transactions that are read-modify-write.
-   */
-  public static final String READMODIFYWRITE_PROPORTION_PROPERTY = "readmodifywriteproportion";
-
-  /**
-   * The default proportion of transactions that are scans.
-   */
-  public static final String READMODIFYWRITE_PROPORTION_PROPERTY_DEFAULT = "0.0";
-
-  /**
-   * The name of the property for the the distribution of requests across the keyspace. Options are
-   * "uniform", "zipfian" and "latest"
-   */
-  public static final String REQUEST_DISTRIBUTION_PROPERTY = "requestdistribution";
-
-  /**
-   * The default distribution of requests across the keyspace.
-   */
-  public static final String REQUEST_DISTRIBUTION_PROPERTY_DEFAULT = "uniform";
-
-  /**
-   * The name of the property for adding zero padding to record numbers in order to match
-   * string sort order. Controls the number of 0s to left pad with.
-   */
-  public static final String ZERO_PADDING_PROPERTY = "zeropadding";
-
-  /**
-   * The default zero padding value. Matches integer sort order
-   */
-  public static final String ZERO_PADDING_PROPERTY_DEFAULT = "1";
-
-
-  /**
-   * The name of the property for the min scan length (number of records).
-   */
-  public static final String MIN_SCAN_LENGTH_PROPERTY = "minscanlength";
-
-  /**
-   * The default min scan length.
-   */
-  public static final String MIN_SCAN_LENGTH_PROPERTY_DEFAULT = "1";
-
-  /**
-   * The name of the property for the max scan length (number of records).
-   */
-  public static final String MAX_SCAN_LENGTH_PROPERTY = "maxscanlength";
-
-  /**
-   * The default max scan length.
-   */
-  public static final String MAX_SCAN_LENGTH_PROPERTY_DEFAULT = "1000";
-
-  /**
-   * The name of the property for the scan length distribution. Options are "uniform" and "zipfian"
-   * (favoring short scans)
-   */
-  public static final String SCAN_LENGTH_DISTRIBUTION_PROPERTY = "scanlengthdistribution";
-
-  /**
-   * The default max scan length.
-   */
-  public static final String SCAN_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT = "uniform";
-
-  /**
-   * The name of the property for the order to insert records. Options are "ordered" or "hashed"
-   */
-  public static final String INSERT_ORDER_PROPERTY = "insertorder";
-
-  /**
-   * Default insert order.
-   */
-  public static final String INSERT_ORDER_PROPERTY_DEFAULT = "hashed";
-
-  /**
-   * Percentage data items that constitute the hot set.
-   */
-  public static final String HOTSPOT_DATA_FRACTION = "hotspotdatafraction";
-
-  /**
-   * Default value of the size of the hot set.
-   */
-  public static final String HOTSPOT_DATA_FRACTION_DEFAULT = "0.2";
-
-  /**
-   * Percentage operations that access the hot set.
-   */
-  public static final String HOTSPOT_OPN_FRACTION = "hotspotopnfraction";
-
-  /**
-   * Default value of the percentage operations accessing the hot set.
-   */
-  public static final String HOTSPOT_OPN_FRACTION_DEFAULT = "0.8";
+  public static final String UPDATE_PROPORTION_PROPERTY_DEFAULT = "0.5";
 
   /**
    * How many times to retry when insertion of a single item to a DB fails.
@@ -307,22 +143,17 @@ public class ConsistencyWorkload extends Workload {
   public static final String NUM_OBJECTS = "numobjects";
   public static final String NUM_OBJECTS_PROPERTY_DEFAULT = "10";
   public static final String OBJECT_VERSION_START = "objectversionstart";
-  public static final String OBJECT_VERSION_START_PROPERTY_DEFAULT = "1";
+  public static final String OBJECT_VERSION_START_PROPERTY_DEFAULT = "0";
+  public static final String OBJECT_VERSION_LIMIT = "objectversionlimit";
+  public static final String OBJECT_VERSION_LIMIT_PROPERTY_DEFAULT = "5";
 
   public static final String VERSION_KEY_FIELD = "version";
 
-  private final Object initialinsertLock = new Object();
-  private AtomicBoolean isInitialInsertDone;
-
   private int numObjects;
   private long objectVersionStart;
+  private long objectVersionLimit;
 
-  protected NumberGenerator keysequence;
   protected DiscreteGenerator operationchooser;
-  protected NumberGenerator keychooser;
-  protected NumberGenerator fieldchooser;
-  protected AcknowledgedCounterGenerator transactioninsertkeysequence;
-  protected NumberGenerator scanlength;
   protected boolean orderedinserts;
   protected long fieldcount;
   protected long recordcount;
@@ -338,35 +169,19 @@ public class ConsistencyWorkload extends Workload {
    */
   @Override
   public void init(Properties p) throws WorkloadException {
-    isInitialInsertDone.set(false);
     numObjects = Integer.parseInt(p.getProperty(NUM_OBJECTS, NUM_OBJECTS_PROPERTY_DEFAULT));
     objectVersionStart = Long.parseLong(p.getProperty(OBJECT_VERSION_START, OBJECT_VERSION_START_PROPERTY_DEFAULT));
-
+    objectVersionLimit = Long.parseLong(p.getProperty(OBJECT_VERSION_LIMIT, OBJECT_VERSION_LIMIT_PROPERTY_DEFAULT));
 
     table = p.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
-
-    fieldcount =
-        Long.parseLong(p.getProperty(FIELD_COUNT_PROPERTY, FIELD_COUNT_PROPERTY_DEFAULT));
-    final String fieldnameprefix = p.getProperty(FIELD_NAME_PREFIX, FIELD_NAME_PREFIX_DEFAULT);
     fieldnames = new ArrayList<>();
-    for (int i = 0; i < fieldcount; i++) {
-      fieldnames.add(fieldnameprefix + i);
-    }
+    fieldnames.add(VERSION_KEY_FIELD);
 
     recordcount =
         Long.parseLong(p.getProperty(Client.RECORD_COUNT_PROPERTY, Client.DEFAULT_RECORD_COUNT));
     if (recordcount == 0) {
       recordcount = Integer.MAX_VALUE;
     }
-    String requestdistrib =
-        p.getProperty(REQUEST_DISTRIBUTION_PROPERTY, REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
-    int minscanlength =
-        Integer.parseInt(p.getProperty(MIN_SCAN_LENGTH_PROPERTY, MIN_SCAN_LENGTH_PROPERTY_DEFAULT));
-    int maxscanlength =
-        Integer.parseInt(p.getProperty(MAX_SCAN_LENGTH_PROPERTY, MAX_SCAN_LENGTH_PROPERTY_DEFAULT));
-    String scanlengthdistrib =
-        p.getProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY, SCAN_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT);
-
 
     dataintegrity = Boolean.parseBoolean(
         p.getProperty(DATA_INTEGRITY_PROPERTY, DATA_INTEGRITY_PROPERTY_DEFAULT));
@@ -379,175 +194,17 @@ public class ConsistencyWorkload extends Workload {
       System.exit(-1);
     }
 
-    if (p.getProperty(INSERT_ORDER_PROPERTY, INSERT_ORDER_PROPERTY_DEFAULT).compareTo("hashed") == 0) {
-      orderedinserts = false;
-    } else if (requestdistrib.compareTo("exponential") == 0) {
-      double percentile = Double.parseDouble(p.getProperty(
-          ExponentialGenerator.EXPONENTIAL_PERCENTILE_PROPERTY,
-          ExponentialGenerator.EXPONENTIAL_PERCENTILE_DEFAULT));
-      double frac = Double.parseDouble(p.getProperty(
-          ExponentialGenerator.EXPONENTIAL_FRAC_PROPERTY,
-          ExponentialGenerator.EXPONENTIAL_FRAC_DEFAULT));
-      keychooser = new ExponentialGenerator(percentile, recordcount * frac);
-    } else {
-      orderedinserts = true;
-    }
-
-    long insertstart =
-        Long.parseLong(p.getProperty(INSERT_START_PROPERTY, INSERT_START_PROPERTY_DEFAULT));
-    long insertcount=
-        Integer.parseInt(p.getProperty(NUM_OBJECTS, NUM_OBJECTS_PROPERTY_DEFAULT));
-
-    keysequence = new CounterGenerator(insertstart);
     operationchooser = createOperationGenerator(p);
-
-    transactioninsertkeysequence = new AcknowledgedCounterGenerator(recordcount);
-    if (requestdistrib.compareTo("uniform") == 0) {
-      keychooser = new UniformLongGenerator(insertstart, insertstart + insertcount - 1);
-    } else if (requestdistrib.compareTo("sequential") == 0) {
-      keychooser = new SequentialGenerator(insertstart, insertstart + insertcount - 1);
-    } else if (requestdistrib.compareTo("zipfian") == 0) {
-      // it does this by generating a random "next key" in part by taking the modulus over the
-      // number of keys.
-      // If the number of keys changes, this would shift the modulus, and we don't want that to
-      // change which keys are popular so we'll actually construct the scrambled zipfian generator
-      // with a keyspace that is larger than exists at the beginning of the test. that is, we'll predict
-      // the number of inserts, and tell the scrambled zipfian generator the number of existing keys
-      // plus the number of predicted keys as the total keyspace. then, if the generator picks a key
-      // that hasn't been inserted yet, will just ignore it and pick another key. this way, the size of
-      // the keyspace doesn't change from the perspective of the scrambled zipfian generator
-      final double insertproportion = Double.parseDouble(
-          p.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT));
-      int opcount = Integer.parseInt(p.getProperty(Client.OPERATION_COUNT_PROPERTY));
-      int expectednewkeys = (int) ((opcount) * insertproportion * 2.0); // 2 is fudge factor
-
-      keychooser = new ScrambledZipfianGenerator(insertstart, insertstart + insertcount + expectednewkeys);
-    } else if (requestdistrib.compareTo("latest") == 0) {
-      keychooser = new SkewedLatestGenerator(transactioninsertkeysequence);
-    } else if (requestdistrib.equals("hotspot")) {
-      double hotsetfraction =
-          Double.parseDouble(p.getProperty(HOTSPOT_DATA_FRACTION, HOTSPOT_DATA_FRACTION_DEFAULT));
-      double hotopnfraction =
-          Double.parseDouble(p.getProperty(HOTSPOT_OPN_FRACTION, HOTSPOT_OPN_FRACTION_DEFAULT));
-      keychooser = new HotspotIntegerGenerator(insertstart, insertstart + insertcount - 1,
-          hotsetfraction, hotopnfraction);
-    } else {
-      throw new WorkloadException("Unknown request distribution \"" + requestdistrib + "\"");
-    }
-
-    fieldchooser = new UniformLongGenerator(0, fieldcount - 1);
-
-    if (scanlengthdistrib.compareTo("uniform") == 0) {
-      scanlength = new UniformLongGenerator(minscanlength, maxscanlength);
-    } else if (scanlengthdistrib.compareTo("zipfian") == 0) {
-      scanlength = new ZipfianGenerator(minscanlength, maxscanlength);
-    } else {
-      throw new WorkloadException(
-          "Distribution \"" + scanlengthdistrib + "\" not allowed for scan length");
-    }
 
     insertionRetryLimit = Integer.parseInt(p.getProperty(
         INSERTION_RETRY_LIMIT, INSERTION_RETRY_LIMIT_DEFAULT));
     insertionRetryInterval = Integer.parseInt(p.getProperty(
         INSERTION_RETRY_INTERVAL, INSERTION_RETRY_INTERVAL_DEFAULT));
-
-    doInitialInserts(Db db);
   }
 
   @Override
   public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
-    int numObjects = Integer.parseInt(p.getProperty(NUM_OBJECTS, NUM_OBJECTS_PROPERTY_DEFAULT));
-    long versionStart = Long.parseLong(p.getProperty(OBJECT_VERSION_START, OBJECT_VERSION_START_PROPERTY_DEFAULT));
-    return new ConsistencyThreadState(mythreadid, numObjects, versionStart);
-  }
-
-  protected String buildKeyName(long keynum) {
-    if (!orderedinserts) {
-      keynum = Utils.hash(keynum);
-    }
-    String value = Long.toString(keynum);
-    int fill = zeropadding - value.length();
-    String prekey = "user";
-    for (int i = 0; i < fill; i++) {
-      prekey += '0';
-    }
-    return prekey + value;
-  }
-
-  /**
-   * Builds a value for a randomly chosen field.
-   */
-  private HashMap<String, ByteIterator> buildSingleValue(String key) {
-    HashMap<String, ByteIterator> value = new HashMap<>();
-
-    String fieldkey = fieldnames.get(fieldchooser.nextValue().intValue());
-    ByteIterator data;
-    if (dataintegrity) {
-      data = new StringByteIterator(buildDeterministicValue(key, fieldkey));
-    } else {
-      // fill with random data
-      data = new RandomByteIterator(fieldlengthgenerator.nextValue().longValue());
-    }
-    value.put(fieldkey, data);
-
-    return value;
-  }
-
-  /**
-   * Builds values for all fields.
-   */
-  private HashMap<String, ByteIterator> buildValues(String key) {
-    HashMap<String, ByteIterator> values = new HashMap<>();
-
-    for (String fieldkey : fieldnames) {
-      ByteIterator data;
-      if (dataintegrity) {
-        data = new StringByteIterator(buildDeterministicValue(key, fieldkey));
-      } else {
-        // fill with random data
-        data = new RandomByteIterator(fieldlengthgenerator.nextValue().longValue());
-      }
-      values.put(fieldkey, data);
-    }
-    return values;
-  }
-
-  /**
-   * Build a deterministic value given the key information.
-   */
-  private String buildDeterministicValue(String key, String fieldkey) {
-    int size = fieldlengthgenerator.nextValue().intValue();
-    StringBuilder sb = new StringBuilder(size);
-    sb.append(key);
-    sb.append(':');
-    sb.append(fieldkey);
-    while (sb.length() < size) {
-      sb.append(':');
-      sb.append(sb.toString().hashCode());
-    }
-    sb.setLength(size);
-
-    return sb.toString();
-  }
-
-
-  public void doInitialInsert(DB db, Object threadstate) {
-    synchronized (initialinsertLock) {
-      if (isInitialInsertDone.get())
-        return;
-
-      ConsistencyThreadState consistencyThreadState = (ConsistencyThreadState) threadstate;
-      consistencyThreadState.setWriter(true);
-      consistencyThreadState.setReader(false);
-
-      for (int i = 0; i < numObjects; i++) {
-        String key = String.valueOf(i+1);
-        Map<String, ByteIterator> values = new HashMap<>();
-        values.put(VERSION_KEY_FIELD, new NumericByteIterator(objectVersionStart));
-        db.insert(table, key, values);
-      }
-      isInitialInsertDone.getAndSet(true);
-    }
+    return new ConsistencyThreadState(mythreadid, numObjects, objectVersionStart, objectVersionLimit);
   }
 
   /**
@@ -558,18 +215,37 @@ public class ConsistencyWorkload extends Workload {
    */
   @Override
   public boolean doInsert(DB db, Object threadstate) {
+    ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
+    if (threadObject.getThreadId() == 0) {
+      for (int i = 0; i < numObjects; i++) {
+        String key = String.valueOf(i + 1);
+        doInsert(db, threadstate, key, objectVersionStart);
+      }
+    }
 
+    return false;
+  }
+
+  public boolean doInsert(DB db, Object threadstate, String key, Long version) {
     ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
 
-    int keyToInsert = threadObject.getNextTaskGenerator().nextValue();
-    String dbkey = buildKeyName(keyToInsert);
-    HashMap<String, ByteIterator> values = buildValues(dbkey);
+    Map<String, ByteIterator> values = new HashMap<>();
+    values.put(VERSION_KEY_FIELD, new StringByteIterator(version.toString()));
 
     Status status;
     int numOfRetries = 0;
     do {
-      status = db.insert(table, dbkey, values);
+      status = db.insert(table, key, values);
       if (null != status && status.isOk()) {
+        threadObject.acknowledgeUpdate(key);
+
+        System.out.println("(" +
+            "writer_id:" + threadObject.getThreadId() +
+            ", key:" + key +
+            ", timestamp:" + Instant.now().getNano() +
+            ", version:" + version +
+            ")");
+
         break;
       }
       // Retry if configured. Without retrying, the load process will fail
@@ -604,26 +280,66 @@ public class ConsistencyWorkload extends Workload {
    */
   @Override
   public boolean doTransaction(DB db, Object threadstate) {
-    if (!isInitialInsertDone.get())
-      doInitialInsert(db, threadstate);
-
-    String operation = operationchooser.nextString();
-    if(operation == null) {
+    ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
+    if (threadObject.getTaskList().isEmpty())
       return false;
-    }
+
+    String operation;
+
+    if (threadObject.getThreadId() == 0)
+      operation = "UPDATE";
+    else
+      operation = "READ";
 
     switch (operation) {
-    case "READ":
-      doTransactionRead(db, threadstate);
-      break;
-    case "UPDATE":
-      doTransactionUpdate(db, threadstate);
-      break;
-    default:
-      doTransactionUpdate(db, threadstate);
+      case "READ":
+        doTransactionRead(db, threadstate);
+        break;
+      case "UPDATE":
+        doTransactionUpdate(db, threadstate);
+        break;
     }
 
     return true;
+  }
+
+  public void doTransactionRead(DB db, Object threadstate) {
+    ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
+    String key = threadObject.getNextTaskGenerator().nextValue();
+
+    HashSet<String> fields = new HashSet<>(fieldnames);
+
+    HashMap<String, ByteIterator> cells = new HashMap<>();
+    db.read(table, key, fields, cells);
+
+    String version = cells.get(VERSION_KEY_FIELD).toString();
+
+    if (version == null) {
+      return;
+    }
+
+    threadObject.acknowledgeRead(key, Long.parseLong(version));
+
+    System.out.println("(" +
+        "reader_id:" + threadObject.getThreadId() +
+        ", key:" + key +
+        ", timestamp:" + Instant.now().getNano() +
+        ", version:" + version +
+        ")");
+/*
+    if (dataintegrity) {
+      verifyRow(key, cells);
+    }
+*/
+  }
+
+  public void doTransactionUpdate(DB db, Object threadstate) {
+    ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
+
+    String keyToInsert = threadObject.getNextTaskGenerator().nextValue();
+    Long nextVersion = threadObject.getNextObjectVersion(keyToInsert);
+
+    doInsert(db, threadstate, keyToInsert, nextVersion);
   }
 
   /**
@@ -655,34 +371,24 @@ public class ConsistencyWorkload extends Workload {
   }
 
 
-  public void doTransactionRead(DB db, Object threadstate) {
-    ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
-    String key = threadObject.getNextTaskGenerator().nextValue();
+  protected static DiscreteGenerator createOperationGenerator(final Properties p) {
+    if (p == null) {
+      throw new IllegalArgumentException("Properties object cannot be null");
+    }
+    final double readproportion = Double.parseDouble(
+        p.getProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_PROPERTY_DEFAULT));
+    final double updateproportion = Double.parseDouble(
+        p.getProperty(UPDATE_PROPORTION_PROPERTY, UPDATE_PROPORTION_PROPERTY_DEFAULT));
 
-    HashSet<String> fields = null;
-
-    if (!readallfields) {
-      // read a random field
-      String fieldname = fieldnames.get(fieldchooser.nextValue().intValue());
-
-      fields = new HashSet<String>();
-      fields.add(fieldname);
-    } else if (dataintegrity) {
-      // pass the full field list if dataintegrity is on for verification
-      fields = new HashSet<String>(fieldnames);
+    final DiscreteGenerator operationchooser = new DiscreteGenerator();
+    if (readproportion > 0) {
+      operationchooser.addValue(readproportion, "READ");
     }
 
-    HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
-    db.read(table, key, fields, cells);
-
-    if (dataintegrity) {
-      verifyRow(key, cells);
+    if (updateproportion > 0) {
+      operationchooser.addValue(updateproportion, "UPDATE");
     }
-  }
 
-  public void doTransactionUpdate(DB db, Object threadstate) {
-    ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
-
-    doInsert(db, null);
+    return operationchooser;
   }
 }

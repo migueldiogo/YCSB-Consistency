@@ -39,7 +39,6 @@ import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.Status;
 
 import java.nio.ByteBuffer;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -338,15 +337,6 @@ public class CassandraCQLClient extends DB {
         }
       }
 
-      String version = result.get("version").toString();
-
-      System.out.println("(" +
-          "writer_id:" + 1 +
-          "key:" + key +
-          "timestamp:" + Instant.now() +
-          "version:" + version +
-          ")");
-
       return Status.OK;
 
     } catch (Exception e) {
@@ -524,15 +514,6 @@ public class CassandraCQLClient extends DB {
 
       session.execute(boundStmt);
 
-      String version = values.get("version").toString();
-
-      System.out.println("(" +
-          "writer_id:" + 1 +
-          "key:" + key +
-          "timestamp:" + Instant.now() +
-          "version:" + version +
-          ")");
-
       return Status.OK;
     } catch (Exception e) {
       logger.error(MessageFormatter.format("Error updating key: {}", key).getMessage(), e);
@@ -565,10 +546,10 @@ public class CassandraCQLClient extends DB {
       if (stmt == null) {
         Insert insertStmt = QueryBuilder.insertInto(table);
 
-        // Add key column, with value TBD
+        // Add key
         insertStmt.value(YCSB_KEY, QueryBuilder.bindMarker());
 
-        // Add fields (other columns), with values TBD
+        // Add fields
         for (String field : fields) {
           insertStmt.value(field, QueryBuilder.bindMarker());
         }
@@ -593,26 +574,16 @@ public class CassandraCQLClient extends DB {
         }
       }
 
-      // Add key value
+      // Add key
       BoundStatement boundStmt = stmt.bind().setString(0, key);
 
-      // Add fields values
+      // Add fields
       ColumnDefinitions vars = stmt.getVariables();
       for (int i = 1; i < vars.size(); i++) {
         boundStmt.setString(i, values.get(vars.getName(i)).toString());
       }
 
-
       session.execute(boundStmt);
-
-      String version = values.get("version").toString();
-
-      System.out.println("(" +
-          "writer_id:" + 1 +
-          "key:" + key +
-          "timestamp:" + Instant.now() +
-          "version:" + version +
-          ")");
 
       return Status.OK;
     } catch (Exception e) {

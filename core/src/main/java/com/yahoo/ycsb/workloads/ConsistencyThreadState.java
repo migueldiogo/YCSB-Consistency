@@ -2,45 +2,67 @@ package com.yahoo.ycsb.workloads;
 
 import com.yahoo.ycsb.generator.UniformGenerator;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ConsistencyThreadState {
   private int threadId;
   private boolean isReader = true;
   private boolean isWriter = false;
+  private long versionLimit;
 
-  private Map<ObjectKey, ObjectVersion> taskList;
+  private Map<String, Long> taskList;
   private UniformGenerator nextTaskGenerator;
 
-  public ConsistencyThreadState(int threadId, int numObjects, long versionStart) {
+  public ConsistencyThreadState(int threadId, int numObjects, long versionStart, long versionLimit) {
     this.threadId = threadId;
     this.taskList = new HashMap<>();
+    this.versionLimit = versionLimit;
 
-    for (int i = 0; i < numObjects; i++) {
-      ObjectKey objectKey = new ObjectKey(String.valueOf(i+1));
-      ObjectVersion objectVersion = new ObjectVersion(versionStart);
+    for (int i = 0; i < numObjects; i++)
+      taskList.put(String.valueOf(i + 1), versionStart);
 
-      taskList.put(objectKey, objectVersion);
-    }
-
-    ArrayList<ObjectKey> objectKeysList = new ArrayList<>(taskList.keySet());
-    ArrayList<String> keysList =
-        (ArrayList<String>) objectKeysList
-            .stream()
-            .map(objectKey -> objectKey.key)
-            .collect(Collectors.toList());
-    this.nextTaskGenerator = new UniformGenerator(keysList);
+    this.nextTaskGenerator = new UniformGenerator(taskList.keySet());
   }
 
-  public Map<ObjectKey, ObjectVersion> getTaskList() {
+  public Map<String, Long> getTaskList() {
     return taskList;
   }
 
   public UniformGenerator getNextTaskGenerator() {
     return nextTaskGenerator;
+  }
+
+  public Long getNextObjectVersion(String key) {
+    Long version = taskList.get(key);
+    if (version == null)
+      return null;
+
+    long nextVersion = version + 1;
+
+    assert nextVersion > versionLimit;
+
+    return nextVersion;
+  }
+
+  public void acknowledgeUpdate(String key) {
+    Long version = taskList.get(key);
+    taskList.put(key, version + 1);
+
+    if (++version > versionLimit) {
+      taskList.remove(key);
+      this.nextTaskGenerator = new UniformGenerator(taskList.keySet());
+    }
+
+  }
+
+  public void acknowledgeRead(String key, long version) {
+    if (version >= versionLimit) {
+      taskList.remove(key);
+      this.nextTaskGenerator = new UniformGenerator(taskList.keySet());
+    }
+    else
+      taskList.put(key, version);
   }
 
   public boolean isReader() {
@@ -59,31 +81,9 @@ public class ConsistencyThreadState {
     isWriter = writer;
   }
 
-  private class ObjectKey {
-    private String key;
-
-    public ObjectKey(String key) {
-      this.key = key;
-    }
-
-    public String getKey() {
-      return key;
-    }
+  public int getThreadId() {
+    return threadId;
   }
 
-  private class ObjectVersion {
-    private Long version;
 
-    public ObjectVersion(Long version) {
-      this.version = version;
-    }
-
-    public Long getVersion() {
-      return version;
-    }
-
-    public void setVersion(Long version) {
-      this.version = version;
-    }
-  }
 }
