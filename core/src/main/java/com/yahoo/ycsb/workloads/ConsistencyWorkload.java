@@ -22,9 +22,11 @@ import com.yahoo.ycsb.generator.DiscreteGenerator;
 import com.yahoo.ycsb.generator.NumberGenerator;
 import com.yahoo.ycsb.measurements.Measurements;
 
-import java.time.Instant;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  *
@@ -203,7 +205,7 @@ public class ConsistencyWorkload extends Workload {
   }
 
   @Override
-  public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
+  public Object initThread(Properties p, int mythreadid, int threadcount) {
     return new ConsistencyThreadState(mythreadid, numObjects, objectVersionStart, objectVersionLimit);
   }
 
@@ -229,22 +231,24 @@ public class ConsistencyWorkload extends Workload {
   public boolean doInsert(DB db, Object threadstate, String key, Long version) {
     ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
 
+    String keyHash = getKeyHash(key);
+
     Map<String, ByteIterator> values = new HashMap<>();
     values.put(VERSION_KEY_FIELD, new StringByteIterator(version.toString()));
 
     Status status;
     int numOfRetries = 0;
     do {
-      status = db.insert(table, key, values);
+      status = db.insert(table, keyHash, values);
+      long timestamp = System.nanoTime();
       if (null != status && status.isOk()) {
         threadObject.acknowledgeUpdate(key);
 
-        System.out.println("(" +
+        System.out.println(
             "writer_id:" + threadObject.getThreadId() +
-            ", key:" + key +
-            ", timestamp:" + Instant.now().getNano() +
-            ", version:" + version +
-            ")");
+            ", key:" + keyHash +
+            ", timestamp:" + timestamp +
+            ", version:" + version);
 
         break;
       }
@@ -281,7 +285,7 @@ public class ConsistencyWorkload extends Workload {
   @Override
   public boolean doTransaction(DB db, Object threadstate) {
     ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
-    if (threadObject.getTaskList().isEmpty())
+    if (threadObject.getNextKey() == null)
       return false;
 
     String operation;
@@ -305,27 +309,32 @@ public class ConsistencyWorkload extends Workload {
 
   public void doTransactionRead(DB db, Object threadstate) {
     ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
-    String key = threadObject.getNextTaskGenerator().nextValue();
+    String key = threadObject.getNextKey();
+
+    String keyHash = getKeyHash(key);
 
     HashSet<String> fields = new HashSet<>(fieldnames);
 
     HashMap<String, ByteIterator> cells = new HashMap<>();
-    db.read(table, key, fields, cells);
 
-    String version = cells.get(VERSION_KEY_FIELD).toString();
+    Status status = db.read(table, keyHash, fields, cells);
+    long timestamp = System.nanoTime();
+    if (null != status && status.isOk()) {
 
-    if (version == null) {
-      return;
+      String version = cells.get(VERSION_KEY_FIELD).toString();
+
+      if (version == null) {
+        return;
+      }
+
+      threadObject.acknowledgeRead(key, Long.parseLong(version));
+
+      System.out.println(
+          "reader_id:" + threadObject.getThreadId() +
+              ", key:" + keyHash +
+              ", timestamp:" + timestamp +
+              ", version:" + version);
     }
-
-    threadObject.acknowledgeRead(key, Long.parseLong(version));
-
-    System.out.println("(" +
-        "reader_id:" + threadObject.getThreadId() +
-        ", key:" + key +
-        ", timestamp:" + Instant.now().getNano() +
-        ", version:" + version +
-        ")");
 /*
     if (dataintegrity) {
       verifyRow(key, cells);
@@ -333,10 +342,24 @@ public class ConsistencyWorkload extends Workload {
 */
   }
 
+  private String getKeyHash(String key) {
+    byte[] bytesOfMessage = key.getBytes(UTF_8);
+
+    MessageDigest md = null;
+    try {
+      md = MessageDigest.getInstance("MD5");
+    } catch (NoSuchAlgorithmException e) {
+      e.printStackTrace();
+    }
+    assert md != null;
+    byte[] byteArray = md.digest(bytesOfMessage);
+    return Base64.getEncoder().encodeToString(byteArray);
+  }
+
   public void doTransactionUpdate(DB db, Object threadstate) {
     ConsistencyThreadState threadObject = (ConsistencyThreadState) threadstate;
 
-    String keyToInsert = threadObject.getNextTaskGenerator().nextValue();
+    String keyToInsert = threadObject.getNextKey();
     Long nextVersion = threadObject.getNextObjectVersion(keyToInsert);
 
     doInsert(db, threadstate, keyToInsert, nextVersion);

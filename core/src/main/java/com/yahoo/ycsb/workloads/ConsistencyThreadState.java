@@ -1,9 +1,9 @@
 package com.yahoo.ycsb.workloads;
 
-import com.yahoo.ycsb.generator.UniformGenerator;
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class ConsistencyThreadState {
   private int threadId;
@@ -11,30 +11,39 @@ public class ConsistencyThreadState {
   private boolean isWriter = false;
   private long versionLimit;
 
-  private Map<String, Long> taskList;
-  private UniformGenerator nextTaskGenerator;
+  private Queue<String> keyTaskQueue;
+  private Map<String, Long> keyRegistry;
 
   public ConsistencyThreadState(int threadId, int numObjects, long versionStart, long versionLimit) {
     this.threadId = threadId;
-    this.taskList = new HashMap<>();
+    this.keyRegistry = new HashMap<>();
     this.versionLimit = versionLimit;
+    this.keyTaskQueue = new LinkedBlockingQueue<>(numObjects);
 
-    for (int i = 0; i < numObjects; i++)
-      taskList.put(String.valueOf(i + 1), versionStart);
-
-    this.nextTaskGenerator = new UniformGenerator(taskList.keySet());
+    for (int i = 0; i < numObjects; i++) {
+      keyRegistry.put(String.valueOf(i + 1), versionStart);
+      keyTaskQueue.add("" + (i + 1));
+    }
   }
 
-  public Map<String, Long> getTaskList() {
-    return taskList;
+  public Map<String, Long> getKeyRegistry() {
+    return keyRegistry;
   }
 
-  public UniformGenerator getNextTaskGenerator() {
-    return nextTaskGenerator;
+  public String getNextKey() {
+    return keyTaskQueue.peek();
+  }
+
+  public Long getCurrentObjectVersion(String key) {
+    return keyRegistry.get(key);
+  }
+
+  public Long setCurrentObjectVersion(String key, long version) {
+    return keyRegistry.put(key, version);
   }
 
   public Long getNextObjectVersion(String key) {
-    Long version = taskList.get(key);
+    Long version = getCurrentObjectVersion(key);
     if (version == null)
       return null;
 
@@ -46,23 +55,20 @@ public class ConsistencyThreadState {
   }
 
   public void acknowledgeUpdate(String key) {
-    Long version = taskList.get(key);
-    taskList.put(key, version + 1);
+    Long version = getCurrentObjectVersion(key);
 
-    if (++version > versionLimit) {
-      taskList.remove(key);
-      this.nextTaskGenerator = new UniformGenerator(taskList.keySet());
+    long nextVersion = version + 1;
+    setCurrentObjectVersion(key, nextVersion);
+
+    if (nextVersion >= versionLimit) {
+      this.keyTaskQueue.poll();
     }
-
   }
 
   public void acknowledgeRead(String key, long version) {
-    if (version >= versionLimit) {
-      taskList.remove(key);
-      this.nextTaskGenerator = new UniformGenerator(taskList.keySet());
+    if (version == versionLimit) {
+      this.keyTaskQueue.poll();
     }
-    else
-      taskList.put(key, version);
   }
 
   public boolean isReader() {
@@ -85,5 +91,7 @@ public class ConsistencyThreadState {
     return threadId;
   }
 
-
+  public void setKeyRegistry(Map<String, Long> keyRegistry) {
+    this.keyRegistry = keyRegistry;
+  }
 }
