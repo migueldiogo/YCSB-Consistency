@@ -1,31 +1,12 @@
-/**
- * Copyright (c) 2010 Yahoo! Inc., Copyright (c) 2016-2017 YCSB contributors. All rights reserved.
- * <p>
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License. You
- * may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * permissions and limitations under the License. See accompanying
- * LICENSE file.
- */
-
 package com.yahoo.ycsb.workloads;
 
 import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.DiscreteGenerator;
-import com.yahoo.ycsb.generator.NumberGenerator;
-import com.yahoo.ycsb.measurements.Measurements;
-
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+import static java.lang.Thread.sleep;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -41,7 +22,7 @@ public class ConsistencyWorkload extends Workload {
   /**
    * The default name of the database table to run queries against.
    */
-  public static final String TABLENAME_PROPERTY_DEFAULT = "teste";
+  public static final String TABLENAME_PROPERTY_DEFAULT = "workload";
 
   protected String table;
 
@@ -57,45 +38,7 @@ public class ConsistencyWorkload extends Workload {
 
   private List<String> fieldnames;
 
-  /**
-   * The name of the property for the field length distribution. Options are "uniform", "zipfian"
-   * (favouring short records), "constant", and "histogram".
-   * <p>
-   * If "uniform", "zipfian" or "constant", the maximum field length will be that specified by the
-   * fieldlength property. If "histogram", then the histogram will be read from the filename
-   * specified in the "fieldlengthhistogram" property.
-   */
-  public static final String FIELD_LENGTH_DISTRIBUTION_PROPERTY = "fieldlengthdistribution";
-
-  /**
-   * The default field length distribution.
-   */
-  public static final String FIELD_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT = "constant";
-
-  /**
-   * Generator object that produces field lengths.  The value of this depends on the properties that
-   * start with "FIELD_LENGTH_".
-   */
-  protected NumberGenerator fieldlengthgenerator;
-
   protected boolean readallfields;
-
-  /**
-   * The name of the property for deciding whether to check all returned
-   * data against the formation template to ensure data integrity.
-   */
-  public static final String DATA_INTEGRITY_PROPERTY = "dataintegrity";
-
-  /**
-   * The default value for the dataintegrity property.
-   */
-  public static final String DATA_INTEGRITY_PROPERTY_DEFAULT = "false";
-
-  /**
-   * Set to true if want to check correctness of reads. Must also
-   * be set to true during loading phase to function.
-   */
-  private boolean dataintegrity;
 
   /**
    * The name of the property for the proportion of transactions that are reads.
@@ -130,16 +73,6 @@ public class ConsistencyWorkload extends Workload {
   public static final String INSERTION_RETRY_INTERVAL_DEFAULT = "3";
 
   /**
-   * Field name prefix.
-   */
-  public static final String FIELD_NAME_PREFIX = "fieldnameprefix";
-
-  /**
-   * Default value of the field name prefix.
-   */
-  public static final String FIELD_NAME_PREFIX_DEFAULT = "field";
-
-  /**
    * CUSTOM:
    */
   public static final String NUM_OBJECTS = "numobjects";
@@ -156,14 +89,10 @@ public class ConsistencyWorkload extends Workload {
   private long objectVersionLimit;
 
   protected DiscreteGenerator operationchooser;
-  protected boolean orderedinserts;
   protected long fieldcount;
   protected long recordcount;
-  protected int zeropadding;
   protected int insertionRetryLimit;
   protected int insertionRetryInterval;
-
-  private Measurements measurements = Measurements.getMeasurements();
 
   /**
    * Initialize the scenario.
@@ -183,17 +112,6 @@ public class ConsistencyWorkload extends Workload {
         Long.parseLong(p.getProperty(Client.RECORD_COUNT_PROPERTY, Client.DEFAULT_RECORD_COUNT));
     if (recordcount == 0) {
       recordcount = Integer.MAX_VALUE;
-    }
-
-    dataintegrity = Boolean.parseBoolean(
-        p.getProperty(DATA_INTEGRITY_PROPERTY, DATA_INTEGRITY_PROPERTY_DEFAULT));
-    // Confirm that fieldlengthgenerator returns a constant if data
-    // integrity check requested.
-    if (dataintegrity && !(p.getProperty(
-        FIELD_LENGTH_DISTRIBUTION_PROPERTY,
-        FIELD_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT)).equals("constant")) {
-      System.err.println("Must have constant field size to check data integrity.");
-      System.exit(-1);
     }
 
     operationchooser = createOperationGenerator(p);
@@ -237,11 +155,11 @@ public class ConsistencyWorkload extends Workload {
     values.put(VERSION_KEY_FIELD, new StringByteIterator(version.toString()));
 
     Status status;
-    int numOfRetries = 0;
     do {
       status = db.insert(table, keyHash, values);
       long timestamp = System.nanoTime();
       if (null != status && status.isOk()) {
+
         threadObject.acknowledgeUpdate(key);
 
         System.out.println(
@@ -251,29 +169,22 @@ public class ConsistencyWorkload extends Workload {
             ", version:" + version);
 
         break;
-      }
-      // Retry if configured. Without retrying, the load process will fail
-      // even if one single insertion fails. User can optionally configure
-      // an insertion retry limit (default is 0) to enable retry.
-      if (++numOfRetries <= insertionRetryLimit) {
-        System.err.println("Retrying insertion, retry count: " + numOfRetries);
-        try {
-          // Sleep for a random number between [0.8, 1.2)*insertionRetryInterval.
-          int sleepTime = (int) (1000 * insertionRetryInterval * (0.8 + 0.4 * Math.random()));
-          Thread.sleep(sleepTime);
-        } catch (InterruptedException e) {
-          break;
-        }
-
       } else {
-        System.err.println("Error inserting, not retrying any more. number of attempts: " + numOfRetries +
-            "Insertion Retry Limit: " + insertionRetryLimit);
-        break;
-
+        System.out.println(
+            "reader_id:" + threadObject.getThreadId() +
+                ", key:" + keyHash +
+                ", timestamp:" + timestamp +
+                ", version: UNAVAILABLE"
+        );
+        try {
+          sleep(1000);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
       }
     } while (true);
 
-    return null != status && status.isOk();
+    return status.isOk();
   }
 
   /**
@@ -317,29 +228,35 @@ public class ConsistencyWorkload extends Workload {
 
     HashMap<String, ByteIterator> cells = new HashMap<>();
 
-    Status status = db.read(table, keyHash, fields, cells);
     long timestamp = System.nanoTime();
+    Status status = db.read(table, keyHash, fields, cells);
     if (null != status && status.isOk()) {
-
       String version = cells.get(VERSION_KEY_FIELD).toString();
 
       if (version == null) {
         return;
       }
 
-      threadObject.acknowledgeRead(key, Long.parseLong(version));
+      threadObject.acknowledgeRead(Long.parseLong(version));
 
+      System.out.println(
+          "reader_id:" + threadObject.getThreadId() +
+          ", key:" + keyHash +
+          ", timestamp:" + timestamp +
+          ", version:" + version);
+    } else {
       System.out.println(
           "reader_id:" + threadObject.getThreadId() +
               ", key:" + keyHash +
               ", timestamp:" + timestamp +
-              ", version:" + version);
+              ", version: UNAVAILABLE"
+      );
+      try {
+        sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
     }
-/*
-    if (dataintegrity) {
-      verifyRow(key, cells);
-    }
-*/
   }
 
   private String getKeyHash(String key) {
@@ -363,34 +280,6 @@ public class ConsistencyWorkload extends Workload {
     Long nextVersion = threadObject.getNextObjectVersion(keyToInsert);
 
     doInsert(db, threadstate, keyToInsert, nextVersion);
-  }
-
-  /**
-   * Results are reported in the first three buckets of the histogram under
-   * the label "VERIFY".
-   * Bucket 0 means the expected data was returned.
-   * Bucket 1 means incorrect data was returned.
-   * Bucket 2 means null data was returned when some data was expected.
-   */
-  protected void verifyRow(String key, HashMap<String, ByteIterator> cells) {
-    /*
-    Status verifyStatus = Status.OK;
-    long startTime = System.nanoTime();
-    if (!cells.isEmpty()) {
-      for (Map.Entry<String, ByteIterator> entry : cells.entrySet()) {
-        if (!entry.getValue().toString().equals(buildDeterministicValue(key, entry.getKey()))) {
-          verifyStatus = Status.UNEXPECTED_STATE;
-          break;
-        }
-      }
-    } else {
-      // This assumes that null data is never valid
-      verifyStatus = Status.ERROR;
-    }
-    long endTime = System.nanoTime();
-    measurements.measure("VERIFY", (int) (endTime - startTime) / 1000);
-    measurements.reportStatus("VERIFY", verifyStatus);
-    */
   }
 
 

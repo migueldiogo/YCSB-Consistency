@@ -65,7 +65,7 @@ public class ConsistencyThreadState {
     }
   }
 
-  public void acknowledgeRead(String key, long version) {
+  public void acknowledgeRead(long version) {
     if (version == versionLimit) {
       this.keyTaskQueue.poll();
     }
