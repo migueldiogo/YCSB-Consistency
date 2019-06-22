@@ -2,12 +2,10 @@ package com.yahoo.ycsb.workloads;
 
 import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.DiscreteGenerator;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+
 import java.util.*;
 
 import static java.lang.Thread.sleep;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  *
@@ -22,7 +20,7 @@ public class ConsistencyWorkload extends Workload {
   /**
    * The default name of the database table to run queries against.
    */
-  public static final String TABLENAME_PROPERTY_DEFAULT = "workload";
+  public static final String TABLENAME_PROPERTY_DEFAULT = "ycsb";
 
   protected String table;
 
@@ -260,17 +258,23 @@ public class ConsistencyWorkload extends Workload {
   }
 
   private String getKeyHash(String key) {
+    /*
     byte[] bytesOfMessage = key.getBytes(UTF_8);
 
     MessageDigest md = null;
     try {
       md = MessageDigest.getInstance("MD5");
+      md.update(key.getBytes(), 0, key.length());
+
     } catch (NoSuchAlgorithmException e) {
       e.printStackTrace();
     }
     assert md != null;
     byte[] byteArray = md.digest(bytesOfMessage);
-    return Base64.getEncoder().encodeToString(byteArray);
+
+    BigInteger bi = new BigInteger(1, byteArray);
+*/
+    return key;
   }
 
   public void doTransactionUpdate(DB db, Object threadstate) {
